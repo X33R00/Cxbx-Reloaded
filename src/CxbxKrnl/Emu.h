@@ -47,6 +47,8 @@ void NTAPI EmuWarning(const char *szWarningMessage, ...);
 inline void NTAPI EmuWarning(const char *szWarningMessage, ...) { }
 #endif
 
+std::string FormatTitleId(uint32_t title_id);
+
 // exception handler
 extern int EmuException(LPEXCEPTION_POINTERS e);
 
@@ -95,7 +97,6 @@ g_pXInputSetStateStatus[XINPUT_SETSTATE_SLOTS];
 // 4 controllers
 #define XINPUT_HANDLE_SLOTS 4
 
-extern bool g_XInputEnabled;
 extern HANDLE g_hInputHandle[XINPUT_HANDLE_SLOTS];
 
 typedef struct DUMMY_KERNEL
@@ -112,4 +113,5 @@ extern bool g_UncapFramerate;
 extern bool g_UseAllCores;
 extern bool g_SkipRdtscPatching;
 extern bool g_ScaleViewport;
+extern bool g_DirectHostBackBufferAccess;
 #endif

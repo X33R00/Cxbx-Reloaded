@@ -78,17 +78,17 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
     <CustomBuildBeforeTargets />
-    <IntDir>$(Configuration)\$(ProjectName)</IntDir>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Direct3D9|Win32'">
     <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
     <CustomBuildBeforeTargets />
-    <IntDir>$(Configuration)\$(ProjectName)</IntDir>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <CustomBuildAfterTargets>Build</CustomBuildAfterTargets>
     <CustomBuildBeforeTargets />
-    <IntDir>$(Configuration)\$(ProjectName)</IntDir>
+    <IntDir>$(Configuration)\$(ProjectName)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <Midl>
@@ -112,7 +112,6 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <MinimalRebuild>true</MinimalRebuild>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -123,7 +122,7 @@
       <AdditionalDependencies>legacy_stdio_definitions.lib;d3d8.lib;dinput8.lib;dxguid.lib;odbc32.lib;odbccp32.lib;Shlwapi.lib;dxerr8.lib;ws2_32.lib;dsound.lib;winmm.lib;ddraw.lib;d3dx8.lib;dbghelp.lib;comctl32.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>$(Configuration)\;..\..\import\distorm\lib\Win32\;..\..\import\glew-2.0.0\lib\Release\Win32\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>msvcrt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
@@ -173,7 +172,6 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <MinimalRebuild>true</MinimalRebuild>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -184,7 +182,7 @@
       <AdditionalDependencies>legacy_stdio_definitions.lib;d3d8.lib;dinput8.lib;dxguid.lib;odbc32.lib;odbccp32.lib;Shlwapi.lib;dxerr8.lib;ws2_32.lib;dsound.lib;winmm.lib;ddraw.lib;d3dx8.lib;dbghelp.lib;comctl32.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>$(Configuration)\;..\..\import\distorm\lib\Win32\;..\..\import\glew-2.0.0\lib\Release\Win32\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>msvcrt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <GenerateMapFile>true</GenerateMapFile>
       <SubSystem>Windows</SubSystem>
@@ -236,7 +234,6 @@
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <MinimalRebuild>true</MinimalRebuild>
       <ExceptionHandling>SyncCThrow</ExceptionHandling>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <ControlFlowGuard>false</ControlFlowGuard>
@@ -254,7 +251,7 @@
       <AdditionalDependencies>legacy_stdio_definitions.lib;d3d8.lib;dinput8.lib;dxguid.lib;odbc32.lib;odbccp32.lib;Shlwapi.lib;dxerr8.lib;ws2_32.lib;dsound.lib;winmm.lib;ddraw.lib;d3dx8.lib;dbghelp.lib;comctl32.lib;XINPUT9_1_0.LIB;%(AdditionalDependencies)</AdditionalDependencies>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <AdditionalLibraryDirectories>$(Configuration)\;..\..\import\distorm\lib\Win32\;..\..\import\glew-2.0.0\lib\Release\Win32\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <IgnoreSpecificDefaultLibraries>libcmt;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <RandomizedBaseAddress>false</RandomizedBaseAddress>
       <DataExecutionPrevention>
@@ -287,6 +284,7 @@
     <ClInclude Include="..\..\src\Common\Win32\Threads.h" />
     <ClInclude Include="..\..\src\Common\CxbxDebugger.h" />
     <ClInclude Include="..\..\src\Common\Win32\XBAudio.h" />
+    <ClInclude Include="..\..\src\Common\Win32\XBPortMapping.h" />
     <ClInclude Include="..\..\src\Common\XADPCM.h" />
     <ClInclude Include="..\..\src\Common\XbePrinter.h" />
     <ClInclude Include="..\..\src\CxbxKrnl\crc32c.h" />
@@ -346,6 +344,7 @@
     <ClInclude Include="..\..\src\CxbxKrnl\EmuShared.h" />
     <ClInclude Include="..\..\src\Common\Error.h" />
     <ClInclude Include="..\..\src\Common\Win32\Mutex.h" />
+    <ClInclude Include="..\..\src\Cxbx\DlgXboxControllerPortMapping.h" />
     <ClInclude Include="..\..\src\Cxbx\ResCxbx.h" />
     <ClInclude Include="..\..\src\Cxbx\Wnd.h" />
     <ClInclude Include="..\..\src\Cxbx\WndMain.h" />
@@ -416,9 +415,11 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\src\Common\Win32\InlineFunc.cpp" />
     <ClCompile Include="..\..\src\Common\Win32\Threads.cpp" />
     <ClCompile Include="..\..\src\Common\CxbxDebugger.cpp" />
     <ClCompile Include="..\..\src\Common\Win32\XBAudio.cpp" />
+    <ClCompile Include="..\..\src\Common\Win32\XBPortMapping.cpp" />
     <ClCompile Include="..\..\src\Common\XbePrinter.cpp" />
     <ClCompile Include="..\..\src\CxbxKrnl\crc32c.cpp" />
     <ClCompile Include="..\..\src\CxbxKrnl\EmuD3D8Logging.cpp" />
@@ -670,6 +671,7 @@
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
+    <ClCompile Include="..\..\src\Cxbx\DlgXboxControllerPortMapping.cpp" />
     <ClCompile Include="..\..\src\Cxbx\WinMain.cpp">
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalIncludeDirectories Condition="'$(Configuration)|$(Platform)'=='Debug_Direct3D9|Win32'">%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

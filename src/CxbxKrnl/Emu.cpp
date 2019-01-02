@@ -42,7 +42,6 @@ namespace xboxkrnl
 };
 
 #include "CxbxKrnl.h"
-#define COMPILE_MULTIMON_STUBS
 #include "Emu.h"
 #include "EmuX86.h"
 #include "EmuFS.h"
@@ -50,6 +49,7 @@ namespace xboxkrnl
 #include "EmuShared.h"
 #include "HLEIntercept.h"
 #include "CxbxDebugger.h"
+#include "Logging.h"
 
 #ifdef _DEBUG
 #include <Dbghelp.h>
@@ -62,12 +62,12 @@ CHAR            *g_strCurDrive= NULL;
 volatile thread_local  bool    g_bEmuException = false;
 volatile bool    g_bEmuSuspended = false;
 volatile bool    g_bPrintfOn = true;
-bool g_XInputEnabled = false;
 bool g_DisablePixelShaders = false;
 bool g_UncapFramerate = false;
 bool g_UseAllCores = false;
 bool g_SkipRdtscPatching = false;
 bool g_ScaleViewport = false;
+bool g_DirectHostBackBufferAccess = false;
 
 // Delta added to host SystemTime, used in xboxkrnl::KeQuerySystemTime and xboxkrnl::NtSetSystemTime
 LARGE_INTEGER	HostSystemTimeDelta = {};
@@ -75,36 +75,58 @@ LARGE_INTEGER	HostSystemTimeDelta = {};
 // Static Function(s)
 static int ExitException(LPEXCEPTION_POINTERS e);
 
+std::string FormatTitleId(uint32_t title_id)
+{
+	std::stringstream ss;
+	
+	// If the Title ID prefix is a printable character, parse it
+	// This shows the correct game serial number for retail titles!
+	// EG: MS-001 for 1st tile published by MS, EA-002 for 2nd title by EA, etc
+	// Some special Xbes (Dashboard, XDK Samples) use non-alphanumeric serials
+	// We fall back to Hex for those
+	char pTitleId1 = (title_id >> 24) & 0xFF;
+	char pTitleId2 = (title_id >> 16) & 0xFF;
+
+	if (!isalnum(pTitleId1) || !isalnum(pTitleId2)) {
+		// Prefix was non-printable, so we need to print a hex reprentation of the entire title_id
+		ss << std::setfill('0') << std::setw(8) << std::hex << std::uppercase << title_id;
+		return ss.str();
+	}	
+
+	ss << pTitleId1 << pTitleId2;
+	ss << "-";
+	ss << std::setfill('0') << std::setw(3) << std::dec << (title_id & 0x0000FFFF);
+
+	return ss.str();
+}
+
 // print out a warning message to the kernel debug log file
 #ifdef _DEBUG_WARNINGS
 void NTAPI EmuWarning(const char *szWarningMessage, ...)
 {
-    if(szWarningMessage == NULL)
+    if (szWarningMessage == NULL) {
         return;
-
-    char szBuffer1[1024];
-    char szBuffer2[1024];
-
-    va_list argp;
-
-    sprintf(szBuffer1, "[0x%.4X] WARN: ", GetCurrentThreadId());
-
-    va_start(argp, szWarningMessage);
-
-    vsprintf(szBuffer2, szWarningMessage, argp);
-
-    va_end(argp);
-
-    strcat(szBuffer1, szBuffer2);
-
-    if(g_bPrintfOn)
-    {
-        printf("%s\n", szBuffer1);
     }
 
-    fflush(stdout);
+    if(g_bPrintfOn) {
 
-    return;
+        va_list argp;
+
+        LOG_THREAD_INIT;
+
+        std::cout << _logThreadPrefix << "WARN: ";
+
+        va_start(argp, szWarningMessage);
+
+        vfprintf(stdout, szWarningMessage, argp);
+
+        va_end(argp);
+
+        fprintf(stdout, "\n");
+
+        fflush(stdout);
+
+    }
 }
 #endif
 

@@ -281,8 +281,17 @@
     <ClCompile Include="..\..\src\CxbxKrnl\PoolManager.cpp">
       <Filter>Emulator</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\src\Cxbx\DlgXboxControllerPortMapping.cpp">
+      <Filter>GUI</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Common\Win32\XBPortMapping.cpp">
+      <Filter>Emulator</Filter>
+    </ClCompile>
     <ClCompile Include="..\..\src\Cxbx\CxbxXbdm.cpp">
       <Filter>Kernel</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\Common\Win32\InlineFunc.cpp">
+      <Filter>Cross Platform\Win32</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -556,6 +565,13 @@
     <ClInclude Include="..\..\src\CxbxKrnl\PoolManager.h">
       <Filter>Emulator</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\Cxbx\DlgXboxControllerPortMapping.h">
+      <Filter>GUI</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\Common\Win32\XBPortMapping.h">
+      <Filter>Emulator</Filter>
+    </ClInclude>
+    <ClInclude Include="DlgXboxControllerPortMapping.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\..\resource\Splash.jpg">
@@ -673,6 +689,15 @@
     </Filter>
     <Filter Include="Code Format\resource">
       <UniqueIdentifier>{6bbc2463-25dc-4f07-bf9e-38d6216d036a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cross Platform">
+      <UniqueIdentifier>{a097bca1-9b9f-4f35-8e77-fdd0a01b2d8e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cross Platform\Win32">
+      <UniqueIdentifier>{c242189e-0079-4c32-b561-2871cb561688}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Cross Platform\Linux">
+      <UniqueIdentifier>{3d3739b8-aeee-4bf1-ac1b-8623e7288dda}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

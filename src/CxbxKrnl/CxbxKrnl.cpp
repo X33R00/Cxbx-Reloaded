@@ -42,6 +42,7 @@ namespace xboxkrnl
     #include <xboxkrnl/xboxkrnl.h>
 };
 
+#include "Cxbx\ResCxbx.h"
 #include "CxbxKrnl.h"
 #include "Cxbx\CxbxXbdm.h" // For Cxbx_LibXbdmThunkTable
 #include "CxbxVersion.h"
@@ -568,12 +569,6 @@ void PrintCurrentConfigurationLog()
 		printf("LLE for JIT is %s\n", bLLE_JIT ? "enabled" : "disabled");
 	}
 
-	// Print current INPUT configuration
-	{
-		printf("--------------------------- INPUT CONFIG ---------------------------\n");
-		printf("Using %s\n", g_XInputEnabled ? "XInput" : "DirectInput");
-	}
-
 	// Print current video configuration (DirectX/HLE)
 	if (!bLLE_GPU) {
 		XBVideo XBVideoConf;
@@ -602,11 +597,12 @@ void PrintCurrentConfigurationLog()
 	// Print Enabled Hacks
 	{
 		printf("--------------------------- HACKS CONFIG ---------------------------\n");
-		printf("Disable Pixel Shaders: %s\n", g_DisablePixelShaders == 1 ? "On" : "Off");
-		printf("Uncap Framerate: %s\n", g_UncapFramerate == 1 ? "On" : "Off");
-		printf("Run Xbox threads on all cores: %s\n", g_UseAllCores == 1 ? "On" : "Off");
-		printf("Skip RDTSC Patching: %s\n", g_SkipRdtscPatching == 1 ? "On" : "Off");
-		printf("Scale Xbox to host viewport (and back): %s\n", g_ScaleViewport == 1 ? "On" : "Off");
+		printf("Disable Pixel Shaders: %s\n", g_DisablePixelShaders == 1 ? "On" : "Off (Default)");
+		printf("Uncap Framerate: %s\n", g_UncapFramerate == 1 ? "On" : "Off (Default)");
+		printf("Run Xbox threads on all cores: %s\n", g_UseAllCores == 1 ? "On" : "Off (Default)");
+		printf("Skip RDTSC Patching: %s\n", g_SkipRdtscPatching == 1 ? "On" : "Off (Default)");
+		printf("Scale Xbox to host viewport (and back): %s\n", g_ScaleViewport == 1 ? "On" : "Off (Default)");
+		printf("Render directly to Host BackBuffer: %s\n", g_DirectHostBackBufferAccess == 1 ? "On (Default)" : "Off");
 	}
 
 	printf("------------------------- END OF CONFIG LOG ------------------------\n");
@@ -703,7 +699,7 @@ void PatchRdtsc(xbaddr addr)
 }
 
 const uint8_t rdtsc_pattern[] = {
-	0x89,//{0x0F,0x31,0x89 },
+	0x89,//{ 0x0F,0x31,0x89 },
 	0xC3,//{ 0x0F,0x31,0xC3 },
 	0x8B,//{ 0x0F,0x31,0x8B },   //one false positive in Sonic Rider .text 88 5C 0F 31
 	0xB9,//{ 0x0F,0x31,0xB9 },
@@ -711,7 +707,7 @@ const uint8_t rdtsc_pattern[] = {
 	0x8D,//{ 0x0F,0x31,0x8D },
 	0x68,//{ 0x0F,0x31,0x68 },
 	0x5A,//{ 0x0F,0x31,0x5A },
-	0x29,//{ 0x0F,0x31,0x29},
+	0x29,//{ 0x0F,0x31,0x29 },
 	0xF3,//{ 0x0F,0x31,0xF3 },
 	0xE9,//{ 0x0F,0x31,0xE9 },
 	0x2B,//{ 0x0F,0x31,0x2B },
@@ -725,8 +721,14 @@ const uint8_t rdtsc_pattern[] = {
 	0x83,//{ 0x0F,0x31,0x83 },
 	0x33,//{ 0x0F,0x31,0x33 },
 	0xF7,//{ 0x0F,0x31,0xF7 },
-	0x8A,//{ 0x0F,0x31,0xF7 }, // 8A and 56 only apears in RalliSport 2 .text , need to watch whether any future false positive.
-	0x56//{ 0x0F,0x31,0xF7 }	//
+	0x8A,//{ 0x0F,0x31,0x8A }, // 8A and 56 only apears in RalliSport 2 .text , need to watch whether any future false positive.
+	0x56,//{ 0x0F,0x31,0x56 }
+    0x6A,                      // 6A, 39, EB, F6, A1, 01 only appear in Unreal Championship, 01 is at WMVDEC section
+    0x39,
+    0xEB,
+    0xF6,
+    0xA1,
+    0x01
 };
 const int sizeof_rdtsc_pattern = sizeof(rdtsc_pattern);
 
@@ -904,6 +906,66 @@ void CxbxKrnlMain(int argc, char* argv[])
 
 	g_CurrentProcessHandle = GetCurrentProcess(); // OpenProcess(PROCESS_ALL_ACCESS, FALSE, GetCurrentProcessId());
 
+	if (CxbxKrnl_hEmuParent != NULL) {
+		SendMessage(CxbxKrnl_hEmuParent, WM_PARENTNOTIFY, MAKELONG(WM_USER, ID_KRNL_IS_READY), GetCurrentProcessId());
+
+		// Force wait until GUI process is ready
+		do {
+			int waitCounter = 10;
+			bool isReady = false;
+
+			while (waitCounter > 0) {
+				g_EmuShared->GetIsReady(&isReady);
+				if (isReady) {
+					break;
+				}
+				waitCounter--;
+				Sleep(100);
+			}
+			if (!isReady) {
+				EmuWarning("GUI process is not ready!");
+				int mbRet = MessageBox(NULL, "GUI process is not ready, do you wish to retry?", TEXT("Cxbx-Reloaded"),
+										MB_ICONWARNING | MB_RETRYCANCEL | MB_TOPMOST | MB_SETFOREGROUND);
+				if (mbRet == IDRETRY) {
+					continue;
+				}
+				CxbxKrnlShutDown();
+			}
+			break;
+		} while (true);
+	}
+
+	g_EmuShared->SetIsReady(false);
+
+	UINT prevKrnlProcID = 0;
+	DWORD dwExitCode = EXIT_SUCCESS;
+	g_EmuShared->GetKrnlProcID(&prevKrnlProcID);
+
+	// Force wait until previous kernel process is closed.
+	if (prevKrnlProcID != 0) {
+		HANDLE hProcess = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_INFORMATION, FALSE, prevKrnlProcID);
+		// If we do receive valid handle, let's do the next step.
+		if (hProcess != NULL) {
+
+			WaitForSingleObject(hProcess, INFINITE);
+
+			GetExitCodeProcess(hProcess, &dwExitCode);
+			CloseHandle(hProcess);
+		}
+	}
+
+	if (dwExitCode != EXIT_SUCCESS) {// StopEmulation
+		CxbxKrnlShutDown();
+	}
+
+	int BootFlags = BOOT_NONE;
+	g_EmuShared->GetBootFlags(&BootFlags);
+
+	g_EmuShared->ResetKrnl();
+
+	// Save current kernel proccess id for next reboot if will occur in the future.
+	g_EmuShared->SetKrnlProcID(GetCurrentProcessId());
+
 	// Write a header to the log
 	{
 		printf("[0x%.4X] INIT: Cxbx-Reloaded Version %s\n", GetCurrentThreadId(), _CXBX_VERSION);
@@ -1047,7 +1109,7 @@ void CxbxKrnlMain(int argc, char* argv[])
 
 
 		// Initialize the virtual manager
-		g_VMManager.Initialize(hMemoryBin, hPageTables);
+		g_VMManager.Initialize(hMemoryBin, hPageTables, BootFlags);
 
 		// Commit the memory used by the xbe header
 		size_t HeaderSize = CxbxKrnl_Xbe->m_Header.dwSizeofHeaders;
@@ -1109,7 +1171,8 @@ void CxbxKrnlMain(int argc, char* argv[])
 			DebugFileName.c_str(),
 			(Xbe::Header*)CxbxKrnl_Xbe->m_Header.dwBaseAddr,
 			CxbxKrnl_Xbe->m_Header.dwSizeofHeaders,
-			(void(*)())EntryPoint
+			(void(*)())EntryPoint,
+ 			BootFlags
 		);
 	}
 }
@@ -1159,7 +1222,8 @@ __declspec(noreturn) void CxbxKrnlInit
 	const char             *szDebugFilename,
 	Xbe::Header            *pXbeHeader,
 	uint32                  dwXbeHeaderSize,
-	void(*Entry)())
+	void(*Entry)(),
+	int BootFlags)
 {
 	// update caches
 	CxbxKrnl_TLS = pTLS;
@@ -1232,13 +1296,6 @@ __declspec(noreturn) void CxbxKrnlInit
 		bLLE_JIT = (CxbxLLE_Flags & LLE_JIT) > 0;
 	}
 
-	// Process XInput Enabled flag
-	{
-		int XInputEnabled;
-		g_EmuShared->GetXInputEnabled(&XInputEnabled);
-		g_XInputEnabled = !!XInputEnabled;
-	}
-
 	// Process Hacks
 	{
 		int HackEnabled = 0;
@@ -1252,6 +1309,8 @@ __declspec(noreturn) void CxbxKrnlInit
 		g_SkipRdtscPatching = !!HackEnabled;
 		g_EmuShared->GetScaleViewport(&HackEnabled);
 		g_ScaleViewport = !!HackEnabled;
+		g_EmuShared->GetDirectHostBackBufferAccess(&HackEnabled);
+		g_DirectHostBackBufferAccess = !!HackEnabled;
 	}
 
 #ifdef _DEBUG_PRINT_CURRENT_CONF
@@ -1260,10 +1319,9 @@ __declspec(noreturn) void CxbxKrnlInit
 	
 	// Initialize devices :
 	char szBuffer[MAX_PATH];
-	SHGetSpecialFolderPath(NULL, szBuffer, CSIDL_APPDATA, TRUE);
-	strcat(szBuffer, "\\Cxbx-Reloaded\\");
-	std::string basePath(szBuffer);
-	CxbxBasePath = basePath + "EmuDisk\\";
+	g_EmuShared->GetStorageLocation(szBuffer);
+
+	CxbxBasePath = std::string(szBuffer) + "\\EmuDisk\\";
 
 	// Determine XBE Path
 	memset(szBuffer, 0, MAX_PATH);
@@ -1273,8 +1331,6 @@ __declspec(noreturn) void CxbxKrnlInit
 	std::string xbeDirectory(szBuffer);
 	CxbxBasePathHandle = CreateFile(CxbxBasePath.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	memset(szBuffer, 0, MAX_PATH);
-	sprintf(szBuffer, "%08X", g_pCertificate->dwTitleId);
-	std::string titleId(szBuffer);
 	// Games may assume they are running from CdRom :
 	CxbxDefaultXbeDriveIndex = CxbxRegisterDeviceHostPath(DeviceCdrom0, xbeDirectory);
 	// Partition 0 contains configuration data, and is accessed as a native file, instead as a folder :
@@ -1330,7 +1386,12 @@ __declspec(noreturn) void CxbxKrnlInit
 
 		// Dump Xbe certificate
 		if (g_pCertificate != NULL) {
-			printf("[0x%.4X] INIT: XBE TitleID : %.8X\n", GetCurrentThreadId(), g_pCertificate->dwTitleId);
+			std::stringstream titleIdHex;
+			titleIdHex << std::hex << g_pCertificate->dwTitleId;
+
+			printf("[0x%.4X] INIT: XBE TitleID : %s\n", GetCurrentThreadId(), FormatTitleId(g_pCertificate->dwTitleId).c_str());
+			printf("[0x%.4X] INIT: XBE TitleID (Hex) : 0x%s\n", GetCurrentThreadId(), titleIdHex.str().c_str());
+			printf("[0x%.4X] INIT: XBE Version : 1.%02d\n", GetCurrentThreadId(), g_pCertificate->dwVersion);
 			printf("[0x%.4X] INIT: XBE TitleName : %ls\n", GetCurrentThreadId(), g_pCertificate->wszTitleName);
 			printf("[0x%.4X] INIT: XBE Region : %s\n", GetCurrentThreadId(), CxbxKrnl_Xbe->GameRegionToString());
 		}
@@ -1372,9 +1433,6 @@ __declspec(noreturn) void CxbxKrnlInit
 	XTL::CxbxInitWindow(true);
 
 	// Now process the boot flags to see if there are any special conditions to handle
-	int BootFlags = 0;
-	g_EmuShared->GetBootFlags(&BootFlags);
-
 	if (BootFlags & BOOT_EJECT_PENDING) {} // TODO
 	if (BootFlags & BOOT_FATAL_ERROR)
 	{
@@ -1447,9 +1505,7 @@ __declspec(noreturn) void CxbxKrnlInit
 
 void CxbxInitFilePaths()
 {
-	char szAppData[MAX_PATH];
-	SHGetSpecialFolderPath(NULL, szAppData, CSIDL_APPDATA, TRUE);
-	snprintf(szFolder_CxbxReloadedData, MAX_PATH, "%s\\Cxbx-Reloaded", szAppData);
+	g_EmuShared->GetStorageLocation(szFolder_CxbxReloadedData);
 
 	// Make sure our data folder exists :
 	int result = SHCreateDirectoryEx(nullptr, szFolder_CxbxReloadedData, nullptr);
@@ -1730,6 +1786,21 @@ __declspec(noreturn) void CxbxKrnlTerminateThread()
 void CxbxKrnlPanic()
 {
     CxbxKrnlCleanup("Kernel Panic!");
+}
+
+void CxbxConvertArgToString(std::string &dest, const char* krnlExe, const char* xbeFile, HWND hwndParent, DebugMode krnlDebug, const char* krnlDebugFile) {
+
+    std::stringstream szArgsStream;
+
+    // The format is: "krnlExe" /load "xbeFile" hwndParent krnlDebug "krnlDebugFile"
+    szArgsStream <<
+        "\"" << krnlExe << "\""
+        " /load \"" << xbeFile << "\""
+        " " << std::dec << (int)hwndParent <<
+        " " << std::dec << (int)krnlDebug <<
+        " \"" << krnlDebugFile << "\"";
+
+    dest = szArgsStream.str();
 }
 
 static clock_t						g_DeltaTime = 0;			 // Used for benchmarking/fps count

@@ -34,6 +34,12 @@
 // ******************************************************************
 #pragma once
 
+#undef USE_SHADER_CACHE
+
+#ifdef USE_SHADER_CACHE
+#include "glib_compat.h" // For GHashTable, g_hash_table_new, g_hash_table_lookup, g_hash_table_insert
+#endif
+
 #include "Cxbx.h" // For xbaddr
 #include "devices\PCIDevice.h" // For PCIDevice
 
@@ -327,7 +333,9 @@ typedef struct PGRAPHState {
 	bool texture_dirty[NV2A_MAX_TEXTURES];
 	TextureBinding *texture_binding[NV2A_MAX_TEXTURES];
 
-	//GHashTable *shader_cache;
+#ifdef USE_SHADER_CACHE
+	GHashTable *shader_cache;
+#endif
 	ShaderBinding *shader_binding;
 
 	bool texture_matrix_enable[NV2A_MAX_TEXTURES];
@@ -499,6 +507,9 @@ typedef struct NV2AState {
     } pfifo;
 
     struct {
+		uint32_t pending_interrupts;
+		uint32_t enabled_interrupts;
+		QemuCond interrupt_cond;
 		uint32_t regs[NV_PVIDEO_SIZE]; // TODO : union
     } pvideo;
 
@@ -617,6 +628,10 @@ inline void D3DPUSH_DECODE(const DWORD dwPushCommand, DWORD &dwMethod, DWORD &dw
 
 void CxbxReserveNV2AMemory(NV2AState *d);
 
+GLuint create_gl_shader(GLenum gl_shader_type,
+	const char *code,
+	const char *name); // forward to nv2a_shaders.cpp
+
 class NV2ADevice : public PCIDevice {
 public:
 	// constructor
@@ -633,7 +648,7 @@ public:
 	uint32_t MMIORead(int barIndex, uint32_t addr, unsigned size);
 	void MMIOWrite(int barIndex, uint32_t addr, uint32_t value, unsigned size);
 
-	static void SwapBuffers(NV2AState *d);
+	static void UpdateHostDisplay(NV2AState *d);
 private:
 	NV2AState *m_nv2a_state;
 };

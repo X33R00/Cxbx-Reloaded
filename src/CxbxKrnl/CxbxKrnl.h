@@ -130,7 +130,7 @@ extern "C" {
 /*! base addresses of various components */
 // The WC memory is another name of the tiled memory
 #define XBOX_WRITE_COMBINED_BASE 0xF0000000 // WC
-#define XBOX_WRITE_COMBINED_SIZE 0x08000000 // - 0xF7FFFFF
+#define XBOX_WRITE_COMBINED_SIZE 0x08000000 // - 0xF7FFFFFF
 #define XBOX_WRITE_COMBINE_END   XBOX_WRITE_COMBINED_BASE + XBOX_WRITE_COMBINED_SIZE // 128 MiB
 
 #define XBOX_UNCACHED_BASE       0xF8000000 // UC
@@ -190,15 +190,6 @@ extern "C" {
 #define VECTOR2IRQ(vector)  ((vector)-IRQ_BASE)
 #define VECTOR2IRQL(vector) (MAX_BUS_INTERRUPT_LEVEL - VECTOR2IRQ(vector))
 
-// Kernel boot flags
-enum {
-	BOOT_EJECT_PENDING =  1 << 0,
-	BOOT_FATAL_ERROR =    1 << 1,
-	BOOT_SKIP_ANIMATION = 1 << 2,
-	BOOT_RUN_DASHBOARD =  1 << 3,
-	BOOT_QUICK_REBOOT =   1 << 4,
-};
-
 /* Xbox PAGE Masks */
 #define XBOX_PAGE_NOACCESS          0x01
 #define XBOX_PAGE_READONLY          0x02
@@ -237,11 +228,18 @@ typedef enum _CxbxMsgDlgIcon {
 
 void CxbxPopupMessage(CxbxMsgDlgIcon icon, const char *message, ...);
 
-#define LOG_TEST_CASE(message) do { static bool bPopupShown = false; \
-    if (!bPopupShown) { bPopupShown = true; \
-    CxbxPopupMessage(CxbxMsgDlgIcon_Info, "Please report that %s shows this test-case: %s\nIn %s (%s line %d)", \
+#ifdef _DEBUG
+#define LOG_TEST_CASE(message) do { static bool bTestCaseLogged = false; \
+    if (!bTestCaseLogged) { bTestCaseLogged = true; \
+    CxbxPopupMessage(CxbxMsgDlgIcon_Info, "Please report that %s shows the following message:\nLOG_TEST_CASE: %s\nIn %s (%s line %d)", \
     CxbxKrnl_Xbe->m_szAsciiTitle, message, __func__, __FILE__, __LINE__); } } while(0)
 // was g_pCertificate->wszTitleName
+#else
+#define LOG_TEST_CASE(message) do { static bool bTestCaseLogged = false; \
+    if (!bTestCaseLogged) { bTestCaseLogged = true; \
+    printf("LOG_TEST_CASE: %s\nIn %s (%s line %d)", \
+    message, __func__, __FILE__, __LINE__); } } while(0)
+#endif
 
 extern Xbe::Certificate *g_pCertificate;
 
@@ -254,7 +252,7 @@ extern bool g_bIsDebugKernel;
 void CxbxKrnlMain(int argc, char* argv[]);
 
 /*! initialize emulation */
-__declspec(noreturn) void CxbxKrnlInit(void *pTLSData, Xbe::TLS *pTLS, Xbe::LibraryVersion *LibraryVersion, DebugMode DbgMode, const char *szDebugFilename, Xbe::Header *XbeHeader, uint32 XbeHeaderSize, void (*Entry)());
+__declspec(noreturn) void CxbxKrnlInit(void *pTLSData, Xbe::TLS *pTLS, Xbe::LibraryVersion *LibraryVersion, DebugMode DbgMode, const char *szDebugFilename, Xbe::Header *XbeHeader, uint32 XbeHeaderSize, void (*Entry)(), int BootFlags);
 
 /*! cleanup emulation */
 __declspec(noreturn) void CxbxKrnlCleanup(const char *szErrorMessage, ...);
@@ -291,6 +289,13 @@ void CxbxInitPerformanceCounters(); // Implemented in EmuKrnlKe.cpp
 void CxbxInitFilePaths();
 
 void ConnectWindowsTimersToThunkTable();
+
+/*! Generate a standard arg format string */
+void CxbxConvertArgToString(std::string &dest, const char* krnlExe, const char* xbeFile, HWND hwndParent, DebugMode krnlDebug, const char* krnlDebugFile);
+
+bool CxbxExec(std::string &execCommand, HANDLE* hProcess, bool requestHandleProcess);
+
+bool CxbxIsElevated();
 
 /*! kernel thunk table */
 extern uint32 CxbxKrnl_KernelThunkTable[379];

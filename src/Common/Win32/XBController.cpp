@@ -476,12 +476,13 @@ void XBController::ListenBegin(HWND hwnd)
 // ******************************************************************
 // * func: XBController::ListenPoll
 // ******************************************************************
-void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
+void XBController::ListenPoll(XTL::X_XINPUT_STATE *Controller)
 {
     if(Controller == NULL)
         return;
 
     XTL::LPDIRECTINPUTDEVICE8 pDevice=NULL;
+    XTL::LPDIRECTINPUTDEVICE8 pPrevDevice=(XTL::LPDIRECTINPUTDEVICE8)-1;
 
     HRESULT hRet=0;
     DWORD dwFlags=0;
@@ -493,6 +494,10 @@ void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
     Controller->Gamepad.sThumbLY = 0;
     Controller->Gamepad.sThumbRX = 0;
     Controller->Gamepad.sThumbRY = 0;
+
+    XTL::DIJOYSTATE JoyState = { 0 };
+	BYTE KeyboardState[256] = { 0 };
+	XTL::DIMOUSESTATE2 MouseState = { 0 };
 
     // ******************************************************************
     // * Poll all devices
@@ -507,16 +512,36 @@ void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
             continue;
 
         pDevice = m_InputDevice[dwDevice].m_Device;
+		if (pDevice == nullptr)
+			continue;
 
-        hRet = pDevice->Poll();
+		// Only poll on device-switch
+		if (pPrevDevice != pDevice) {
+			pPrevDevice = pDevice;
+			hRet = pDevice->Poll();
+			if (FAILED(hRet)) {
+				hRet = pDevice->Acquire();
+				while (hRet == DIERR_INPUTLOST)
+					hRet = pDevice->Acquire();
+			}
 
-        if(FAILED(hRet))
-        {
-            hRet = pDevice->Acquire();
+			if (dwFlags & DEVICE_FLAG_JOYSTICK) {
+				JoyState = { 0 };
+				if (pDevice->GetDeviceState(sizeof(JoyState), &JoyState) != DI_OK)
+					continue;
+			}
+			else if (dwFlags & DEVICE_FLAG_KEYBOARD) {
+				memset(KeyboardState, 0, sizeof(KeyboardState));
+				if (pDevice->GetDeviceState(sizeof(KeyboardState), &KeyboardState) != DI_OK)
+					continue;
+			}
+			else if (dwFlags & DEVICE_FLAG_MOUSE) {
+				MouseState = { 0 };
 
-            while(hRet == DIERR_INPUTLOST)
-                hRet = pDevice->Acquire();
-        }
+				if (pDevice->GetDeviceState(sizeof(MouseState), &MouseState) != DI_OK)
+					continue;
+			}
+		}
 
         SHORT wValue = 0;
 
@@ -525,11 +550,6 @@ void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
         // ******************************************************************
         if(dwFlags & DEVICE_FLAG_JOYSTICK)
         {
-            XTL::DIJOYSTATE JoyState = {0};
-
-            if(pDevice->GetDeviceState(sizeof(JoyState), &JoyState) != DI_OK)
-                continue;
-
             if(dwFlags & DEVICE_FLAG_AXIS)
             {
                 LONG *pdwAxis = (LONG*)((uint32)&JoyState + dwInfo);
@@ -563,11 +583,6 @@ void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
         // ******************************************************************
         else if(dwFlags & DEVICE_FLAG_KEYBOARD)
         {
-            BYTE KeyboardState[256] = {0};
-
-            if(pDevice->GetDeviceState(sizeof(KeyboardState), &KeyboardState) != DI_OK)
-                continue;
-
             BYTE bKey = KeyboardState[dwInfo];
 
             if(bKey & 0x80)
@@ -580,11 +595,6 @@ void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
         // ******************************************************************
         else if(dwFlags & DEVICE_FLAG_MOUSE)
         {
-            XTL::DIMOUSESTATE2 MouseState = {0};
-
-            if(pDevice->GetDeviceState(sizeof(MouseState), &MouseState) != DI_OK)
-                continue;
-
             if(dwFlags & DEVICE_FLAG_MOUSE_CLICK)
             {
                 if(MouseState.rgbButtons[dwInfo] & 0x80)
@@ -671,76 +681,76 @@ void XBController::ListenPoll(XTL::XINPUT_STATE *Controller)
                     Controller->Gamepad.sThumbRX -= wValue;
                     break;
                 case XBCTRL_OBJECT_A:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_A] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_A] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_B:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_B] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_B] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_X:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_X] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_X] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_Y:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_Y] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_Y] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_WHITE:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_WHITE] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_WHITE] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_BLACK:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_BLACK] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_BLACK] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_LTRIGGER:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_LEFT_TRIGGER] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_LEFT_TRIGGER] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_RTRIGGER:
-                    Controller->Gamepad.bAnalogButtons[XB_XINPUT_GAMEPAD_RIGHT_TRIGGER] = (wValue / 128);
+                    Controller->Gamepad.bAnalogButtons[X_XINPUT_GAMEPAD_RIGHT_TRIGGER] = (wValue / 128);
                     break;
                 case XBCTRL_OBJECT_DPADUP:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_DPAD_UP;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_DPAD_UP;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_DPAD_UP;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_DPAD_UP;
                     break;
                 case XBCTRL_OBJECT_DPADDOWN:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_DPAD_DOWN;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_DPAD_DOWN;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_DPAD_DOWN;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_DPAD_DOWN;
                     break;
                 case XBCTRL_OBJECT_DPADLEFT:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_DPAD_LEFT;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_DPAD_LEFT;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_DPAD_LEFT;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_DPAD_LEFT;
                     break;
                 case XBCTRL_OBJECT_DPADRIGHT:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_DPAD_RIGHT;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_DPAD_RIGHT;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_DPAD_RIGHT;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_DPAD_RIGHT;
                     break;
                 case XBCTRL_OBJECT_BACK:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_BACK;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_BACK;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_BACK;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_BACK;
                     break;
                 case XBCTRL_OBJECT_START:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_START;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_START;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_START;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_START;
                     break;
                 case XBCTRL_OBJECT_LTHUMB:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_LEFT_THUMB;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_LEFT_THUMB;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_LEFT_THUMB;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_LEFT_THUMB;
                     break;
                 case XBCTRL_OBJECT_RTHUMB:
                     if(wValue > 0)
-                        Controller->Gamepad.wButtons |= XB_XINPUT_GAMEPAD_RIGHT_THUMB;
+                        Controller->Gamepad.wButtons |= X_XINPUT_GAMEPAD_RIGHT_THUMB;
                     else
-                        Controller->Gamepad.wButtons &= ~XB_XINPUT_GAMEPAD_RIGHT_THUMB;
+                        Controller->Gamepad.wButtons &= ~X_XINPUT_GAMEPAD_RIGHT_THUMB;
                     break;
             }
         }
